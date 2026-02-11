@@ -3,7 +3,7 @@ name: Build & Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -53,8 +53,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Inmobiliaria Inbox ${{ github.ref_name }}'
-          releaseBody: 'Descargá el instalador para tu plataforma.'
+          releaseName: "Inmobiliaria Inbox ${{ github.ref_name }}"
+          releaseBody: "Descargá el instalador para tu plataforma."
           releaseDraft: false
           prerelease: false
           args: --target ${{ matrix.target }}
