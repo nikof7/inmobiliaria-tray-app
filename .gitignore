@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Tauri build output
+src-tauri/target/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temp files
+*.tmp
+*.swp
+*~
+
+# Generated
+generate-icons.js

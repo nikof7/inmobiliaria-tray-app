@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inmobiliaria Inbox</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Login View -->
+      <div id="view-login" class="view">
+        <div class="logo">
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 48 48"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <rect width="48" height="48" rx="12" fill="#3b82f6" />
+            <path d="M14 34V20L24 12L34 20V34H28V26H20V34H14Z" fill="white" />
+          </svg>
+          <h1>Inmobiliaria Inbox</h1>
+          <p class="subtitle">Conectá con tu servidor para empezar</p>
+        </div>
+
+        <form id="login-form">
+          <div class="field">
+            <label for="server-url">URL del servidor</label>
+            <input
+              type="url"
+              id="server-url"
+              placeholder="https://tu-servidor.pockethost.io"
+              required
+            />
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              placeholder="tu@email.com"
+              required
+            />
+          </div>
+          <div class="field">
+            <label for="password">Contraseña</label>
+            <input
+              type="password"
+              id="password"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+          <div id="login-error" class="error hidden"></div>
+          <button type="submit" id="btn-login" class="btn-primary">
+            <span class="btn-text">Conectar</span>
+            <span class="btn-loading hidden">Conectando...</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Settings View -->
+      <div id="view-settings" class="view hidden">
+        <div class="header">
+          <h2>Configuración</h2>
+          <div id="connection-status" class="status-badge connected">
+            <span class="status-dot"></span>
+            <span class="status-text">Conectado</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Cuenta</div>
+          <div class="info-row">
+            <span class="info-label">Email</span>
+            <span id="settings-email" class="info-value">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Servidor</span>
+            <span id="settings-server" class="info-value truncate">—</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Carpeta Inbox</div>
+          <div class="folder-row">
+            <span id="settings-folder" class="folder-path"
+              >~/Documents/Inmobiliaria Inbox</span
+            >
+            <button id="btn-change-folder" class="btn-small">Cambiar</button>
+          </div>
+          <button id="btn-open-folder" class="btn-secondary">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M2 3C2 2.44772 2.44772 2 3 2H6.17157C6.43679 2 6.69114 2.10536 6.87868 2.29289L7.70711 3.12132C7.89464 3.30886 8.149 3.41421 8.41421 3.41421H13C13.5523 3.41421 14 3.86193 14 4.41421V13C14 13.5523 13.5523 14 13 14H3C2.44772 14 2 13.5523 2 13V3Z"
+                stroke="currentColor"
+                stroke-width="1.5"
+              />
+            </svg>
+            Abrir carpeta
+          </button>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Opciones</div>
+          <label class="toggle-row">
+            <span>Iniciar con el sistema</span>
+            <input type="checkbox" id="toggle-autostart" />
+            <span class="toggle-switch"></span>
+          </label>
+          <label class="toggle-row">
+            <span>Eliminar archivos después de subir</span>
+            <input type="checkbox" id="toggle-delete" checked />
+            <span class="toggle-switch"></span>
+          </label>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Estado</div>
+          <div class="info-row">
+            <span class="info-label">Cola de subida</span>
+            <span id="queue-count" class="info-value">0 archivos</span>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="btn-save" class="btn-primary">Guardar cambios</button>
+          <button id="btn-logout" class="btn-danger">Cerrar sesión</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
