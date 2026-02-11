@@ -10,15 +10,10 @@
     "beforeBuildCommand": ""
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [],
     "security": {
       "csp": null
-    },
-    "trayIcon": {
-      "id": "main-tray",
-      "iconPath": "icons/tray-default.png",
-      "iconAsTemplate": true,
-      "tooltip": "Inmobiliaria Inbox"
     }
   },
   "bundle": {

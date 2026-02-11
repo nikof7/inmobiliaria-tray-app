@@ -2,13 +2,16 @@ use crate::auth::{self, AuthData};
 use crate::config::{AppConfig, ConfigManager};
 use crate::uploader::{RecentUpload, UploadManager};
 use serde::Serialize;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::State;
+use tauri_plugin_dialog::DialogExt;
 
 /// Application state accessible from commands
 pub struct AppState {
     pub config_manager: ConfigManager,
     pub upload_manager: Arc<UploadManager>,
+    pub services_running: AtomicBool,
 }
 
 #[derive(Debug, Serialize)]
@@ -86,4 +89,40 @@ pub async fn get_status(state: State<'_, AppState>) -> Result<StatusInfo, String
 pub async fn open_inbox_folder(state: State<'_, AppState>) -> Result<(), String> {
     let config = state.config_manager.get();
     open::that(&config.inbox_path).map_err(|e| format!("Failed to open folder: {}", e))
+}
+
+#[tauri::command]
+pub async fn select_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.dialog()
+        .file()
+        .set_title("Seleccionar carpeta Inbox")
+        .pick_folder(move |folder| {
+            let path = folder.map(|f| f.to_string());
+            let _ = tx.send(path);
+        });
+    rx.recv()
+        .map_err(|e| format!("Dialog error: {}", e))
+}
+
+#[tauri::command]
+pub async fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let mgr = app.autolaunch();
+    if enabled {
+        mgr.enable().map_err(|e| format!("Autostart error: {}", e))
+    } else {
+        mgr.disable().map_err(|e| format!("Autostart error: {}", e))
+    }
+}
+
+#[tauri::command]
+pub async fn start_services_cmd(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    if state.services_running.swap(true, Ordering::SeqCst) {
+        // Already running
+        return Ok(());
+    }
+    let upload_manager = state.upload_manager.clone();
+    crate::start_services(&app, upload_manager).await;
+    Ok(())
 }

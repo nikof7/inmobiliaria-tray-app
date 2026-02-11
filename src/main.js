@@ -58,6 +58,9 @@ loginForm.addEventListener("submit", async (e) => {
             serverUrl,
         });
 
+        // Start watcher + upload worker after first login
+        await invoke("start_services_cmd");
+
         await loadSettings();
         showView("settings");
     } catch (err) {
@@ -112,18 +115,10 @@ btnSave.addEventListener("click", async () => {
         await invoke("save_config", { config: newConfig });
         currentConfig = newConfig;
 
-        // Update autostart with the plugin
-        if (newConfig.auto_start) {
-            try {
-                const { enable } = await import("@tauri-apps/plugin-autostart");
-                await enable();
-            } catch { }
-        } else {
-            try {
-                const { disable } = await import("@tauri-apps/plugin-autostart");
-                await disable();
-            } catch { }
-        }
+        // Update autostart via Rust command
+        try {
+            await invoke("set_autostart", { enabled: newConfig.auto_start });
+        } catch { }
 
         // Brief visual feedback
         btnSave.textContent = "✓ Guardado";
@@ -162,12 +157,7 @@ btnOpenFolder.addEventListener("click", async () => {
 // ---- Change Folder ----
 btnChangeFolder.addEventListener("click", async () => {
     try {
-        const { open } = await import("@tauri-apps/plugin-dialog");
-        const selected = await open({
-            directory: true,
-            multiple: false,
-            title: "Seleccionar carpeta Inbox",
-        });
+        const selected = await invoke("select_folder");
 
         if (selected && currentConfig) {
             currentConfig.inbox_path = selected;

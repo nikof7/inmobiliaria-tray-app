@@ -7,6 +7,7 @@ mod watcher;
 
 use commands::AppState;
 use config::ConfigManager;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::Manager;
 use uploader::UploadManager;
@@ -40,6 +41,9 @@ pub fn run() {
             commands::save_config,
             commands::get_status,
             commands::open_inbox_folder,
+            commands::select_folder,
+            commands::set_autostart,
+            commands::start_services_cmd,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -49,6 +53,10 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .expect("Failed to get app data dir");
+
+            // Initialize auth module with app data path
+            auth::init(&app_data_dir);
+
             let config_manager = ConfigManager::new(app_data_dir);
 
             // Initialize upload manager
@@ -58,6 +66,7 @@ pub fn run() {
             app.manage(AppState {
                 config_manager,
                 upload_manager: upload_manager.clone(),
+                services_running: AtomicBool::new(false),
             });
 
             // Create the tray icon
@@ -106,6 +115,8 @@ pub fn run() {
 
                 if has_auth {
                     log::info!("Authenticated, starting services...");
+                    let state = app_handle_setup.state::<AppState>();
+                    state.services_running.store(true, Ordering::SeqCst);
                     start_services(&app_handle_setup, upload_manager_setup).await;
                 } else {
                     log::info!("Not authenticated, showing settings window...");
@@ -153,7 +164,7 @@ fn show_settings_window(app: &tauri::AppHandle) {
     }
 }
 
-async fn start_services(app: &tauri::AppHandle, upload_manager: Arc<UploadManager>) {
+pub async fn start_services(app: &tauri::AppHandle, upload_manager: Arc<UploadManager>) {
     let state = app.state::<AppState>();
     let config = state.config_manager.get();
 

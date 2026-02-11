@@ -1,11 +1,25 @@
-use keyring::Entry;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::sync::OnceLock;
 
-const KEYRING_SERVICE: &str = "inmobiliaria-inbox";
-const KEYRING_TOKEN_KEY: &str = "auth-token";
-const KEYRING_USER_ID_KEY: &str = "user-id";
-const KEYRING_USER_EMAIL_KEY: &str = "user-email";
+/// Global path to the credentials file, set once at app startup
+static AUTH_FILE_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+const AUTH_FILE_NAME: &str = "credentials.json";
+
+/// Initialize the auth module with the app data directory.
+/// Must be called once at startup before any other auth function.
+pub fn init(app_data_dir: &PathBuf) {
+    let path = app_data_dir.join(AUTH_FILE_NAME);
+    AUTH_FILE_PATH.set(path).ok();
+}
+
+fn auth_file() -> &'static PathBuf {
+    AUTH_FILE_PATH
+        .get()
+        .expect("auth::init() must be called before using auth functions")
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthData {
@@ -115,77 +129,43 @@ pub async fn check_auth(server_url: &str) -> Result<AuthData, String> {
     }
 }
 
-/// Store credentials securely in the OS keychain
+/// Store credentials in a local JSON file
 fn store_credentials(auth_data: &AuthData) -> Result<(), String> {
-    let token_entry =
-        Entry::new(KEYRING_SERVICE, KEYRING_TOKEN_KEY).map_err(|e| e.to_string())?;
-    token_entry
-        .set_password(&auth_data.token)
-        .map_err(|e| format!("Failed to store token: {}", e))?;
-
-    let user_id_entry =
-        Entry::new(KEYRING_SERVICE, KEYRING_USER_ID_KEY).map_err(|e| e.to_string())?;
-    user_id_entry
-        .set_password(&auth_data.user_id)
-        .map_err(|e| format!("Failed to store user ID: {}", e))?;
-
-    let email_entry =
-        Entry::new(KEYRING_SERVICE, KEYRING_USER_EMAIL_KEY).map_err(|e| e.to_string())?;
-    email_entry
-        .set_password(&auth_data.email)
-        .map_err(|e| format!("Failed to store email: {}", e))?;
-
+    let path = auth_file();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(auth_data).map_err(|e| e.to_string())?;
+    std::fs::write(path, json).map_err(|e| format!("Failed to store credentials: {}", e))?;
     Ok(())
 }
 
-/// Retrieve stored credentials from the OS keychain
+/// Retrieve stored credentials from the local JSON file
 pub fn get_stored_credentials() -> Result<AuthData, String> {
-    let token_entry =
-        Entry::new(KEYRING_SERVICE, KEYRING_TOKEN_KEY).map_err(|e| e.to_string())?;
-    let token = token_entry
-        .get_password()
-        .map_err(|_| "No stored token found".to_string())?;
-
-    let user_id_entry =
-        Entry::new(KEYRING_SERVICE, KEYRING_USER_ID_KEY).map_err(|e| e.to_string())?;
-    let user_id = user_id_entry
-        .get_password()
-        .map_err(|_| "No stored user ID found".to_string())?;
-
-    let email_entry =
-        Entry::new(KEYRING_SERVICE, KEYRING_USER_EMAIL_KEY).map_err(|e| e.to_string())?;
-    let email = email_entry
-        .get_password()
-        .map_err(|_| "No stored email found".to_string())?;
-
-    Ok(AuthData {
-        token,
-        user_id,
-        email,
-    })
+    let path = auth_file();
+    if !path.exists() {
+        return Err("No stored credentials found".to_string());
+    }
+    let content =
+        std::fs::read_to_string(path).map_err(|e| format!("Failed to read credentials: {}", e))?;
+    serde_json::from_str(&content).map_err(|e| format!("Failed to parse credentials: {}", e))
 }
 
 /// Remove stored credentials (logout)
 pub fn logout() -> Result<(), String> {
-    let entries = [KEYRING_TOKEN_KEY, KEYRING_USER_ID_KEY, KEYRING_USER_EMAIL_KEY];
-    for key in entries {
-        if let Ok(entry) = Entry::new(KEYRING_SERVICE, key) {
-            let _ = entry.delete_credential(); // Ignore errors if not found
-        }
+    let path = auth_file();
+    if path.exists() {
+        std::fs::remove_file(path).map_err(|e| format!("Failed to remove credentials: {}", e))?;
     }
     Ok(())
 }
 
 /// Get the stored token (if any) without validation
 pub fn get_token() -> Option<String> {
-    Entry::new(KEYRING_SERVICE, KEYRING_TOKEN_KEY)
-        .ok()
-        .and_then(|e| e.get_password().ok())
+    get_stored_credentials().ok().map(|c| c.token)
 }
 
 /// Get stored user ID
 pub fn get_user_id() -> Option<String> {
-    Entry::new(KEYRING_SERVICE, KEYRING_USER_ID_KEY)
-        .ok()
-        .and_then(|e| e.get_password().ok())
+    get_stored_credentials().ok().map(|c| c.user_id)
 }
