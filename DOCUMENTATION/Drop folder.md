@@ -86,7 +86,7 @@ Una aplicación construida con Tauri que se instala en la computadora del usuari
 
 **Menú de la bandeja del sistema:**
 
-- Abrir carpeta Inbox → Abre la carpeta en Finder/Explorer
+- Abrir carpeta → Abre la carpeta en Finder/Explorer
 - Abrir MiApp → Abre la aplicación web en el navegador
 - Estado: "Conectado" / "Sin conexión" / "Subiendo..."
 - Archivos recientes: lista de los últimos archivos subidos con estado

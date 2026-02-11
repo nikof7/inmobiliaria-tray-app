@@ -87,7 +87,7 @@ fn build_menu(
     state: &TrayState,
     recent: &[crate::uploader::RecentUpload],
 ) -> Result<tauri::menu::Menu<tauri::Wry>, String> {
-    let open_folder = MenuItemBuilder::with_id("open_folder", "Abrir carpeta Inbox")
+    let open_folder = MenuItemBuilder::with_id("open_folder", "Abrir carpeta")
         .build(app)
         .map_err(|e| e.to_string())?;
 

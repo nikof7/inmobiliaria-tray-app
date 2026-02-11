@@ -43,7 +43,7 @@ El instalador se genera en `src-tauri/target/release/bundle/`.
 
 ## Menú del tray
 
-- **Abrir carpeta Inbox** — Abre la carpeta en Finder/Explorer
+- **Abrir carpeta** — Abre la carpeta en Finder/Explorer
 - **Abrir Inmobiliaria Web** — Abre el servidor en el navegador
 - **Estado** — Conectado / Sin conexión / Subiendo...
 - **Archivos recientes** — Últimos archivos subidos con su estado
