@@ -16,11 +16,16 @@ const RETRY_DELAY_BASE_SECS: u64 = 5;
 /// Max retries before giving up on a single file
 const MAX_RETRIES: u32 = 10;
 
+/// Maximum file size: 200 MB
+const MAX_FILE_SIZE: u64 = 200 * 1024 * 1024;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecentUpload {
     pub name: String,
     pub status: UploadStatus,
     pub timestamp: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -77,6 +82,7 @@ impl UploadManager {
             name: file_name,
             status: UploadStatus::Pending,
             timestamp: chrono::Local::now().format("%H:%M:%S").to_string(),
+            error: None,
         });
 
         queue.push_back(QueueItem { path, retries: 0 });
@@ -116,9 +122,14 @@ impl UploadManager {
     }
 
     fn update_recent_status(&self, name: &str, status: UploadStatus) {
+        self.update_recent_status_with_error(name, status, None);
+    }
+
+    fn update_recent_status_with_error(&self, name: &str, status: UploadStatus, error: Option<String>) {
         let mut recent = self.recent.lock().unwrap();
         if let Some(entry) = recent.iter_mut().find(|r| r.name == name) {
             entry.status = status;
+            entry.error = error;
         }
     }
 
@@ -167,6 +178,36 @@ impl UploadManager {
                     *self.is_uploading.lock().unwrap() = true;
                     self.update_recent_status(&file_name, UploadStatus::Uploading);
 
+                    // Validate file before attempting upload
+                    let validation_err = match std::fs::metadata(&item.path) {
+                        Ok(meta) => {
+                            let size = meta.len();
+                            if size == 0 {
+                                Some("Archivo vacío".to_string())
+                            } else if size > MAX_FILE_SIZE {
+                                Some(format!(
+                                    "Archivo demasiado grande ({:.0} MB, máx {:.0} MB)",
+                                    size as f64 / 1_048_576.0,
+                                    MAX_FILE_SIZE as f64 / 1_048_576.0
+                                ))
+                            } else {
+                                None
+                            }
+                        }
+                        Err(e) => Some(format!("No se puede leer: {}", e)),
+                    };
+
+                    if let Some(reason) = validation_err {
+                        log::error!("Skipping {}: {}", file_name, reason);
+                        self.update_recent_status_with_error(
+                            &file_name,
+                            UploadStatus::Failed,
+                            Some(reason),
+                        );
+                        *self.is_uploading.lock().unwrap() = false;
+                        continue;
+                    }
+
                     match upload_file(&item.path, &server_url).await {
                         Ok(_) => {
                             log::info!("Successfully uploaded: {}", file_name);
@@ -195,6 +236,8 @@ impl UploadManager {
                         Err(e) => {
                             log::error!("Upload failed for {}: {}", file_name, e);
 
+                            let user_error = humanize_error(&e);
+
                             // Force a health check on next iteration
                             last_health_check = std::time::Instant::now() - HEALTH_CHECK_INTERVAL;
 
@@ -203,7 +246,11 @@ impl UploadManager {
 
                             if item.retries < MAX_RETRIES {
                                 // Re-enqueue with exponential backoff
-                                self.update_recent_status(&file_name, UploadStatus::Pending);
+                                self.update_recent_status_with_error(
+                                    &file_name,
+                                    UploadStatus::Pending,
+                                    Some(format!("Reintentando ({}/{}): {}", item.retries, MAX_RETRIES, user_error)),
+                                );
                                 self.queue.lock().unwrap().push_back(item.clone());
                                 let delay =
                                     RETRY_DELAY_BASE_SECS * 2u64.pow(item.retries.min(6));
@@ -221,7 +268,11 @@ impl UploadManager {
                                     file_name,
                                     MAX_RETRIES
                                 );
-                                self.update_recent_status(&file_name, UploadStatus::Failed);
+                                self.update_recent_status_with_error(
+                                    &file_name,
+                                    UploadStatus::Failed,
+                                    Some(user_error),
+                                );
                             }
                         }
                     }
@@ -303,4 +354,21 @@ async fn check_server(server_url: &str) -> bool {
         .unwrap_or_default();
 
     client.get(&url).send().await.is_ok()
+}
+
+/// Convert raw error strings into user-friendly Spanish messages
+fn humanize_error(err: &str) -> String {
+    if err.contains("413") || err.contains("too large") || err.contains("payload") {
+        "El servidor rechazó el archivo por ser muy grande".to_string()
+    } else if err.contains("401") || err.contains("403") || err.contains("Not authenticated") {
+        "Sin autorización — cerrá sesión y volvé a ingresar".to_string()
+    } else if err.contains("timeout") || err.contains("timed out") {
+        "Tiempo de espera agotado — conexión lenta o servidor no responde".to_string()
+    } else if err.contains("connection") || err.contains("dns") || err.contains("resolve") {
+        "Error de conexión — verificá tu internet".to_string()
+    } else if err.contains("Failed to read file") {
+        "No se pudo leer el archivo".to_string()
+    } else {
+        format!("Error: {}", err)
+    }
 }

@@ -14,6 +14,7 @@ pub enum TrayState {
     Syncing(usize),
     Offline,
     Pending(usize),
+    Error(usize),
     NotAuthenticated,
 }
 
@@ -45,6 +46,7 @@ pub fn update_tray(
         TrayState::Syncing(_) => "tray-syncing",
         TrayState::Offline => "tray-offline",
         TrayState::Pending(_) => "tray-default",
+        TrayState::Error(_) => "tray-error",
         TrayState::NotAuthenticated => "tray-offline",
     };
 
@@ -56,6 +58,7 @@ pub fn update_tray(
         TrayState::Syncing(n) => format!("Inmobiliaria Inbox — Subiendo {} archivo(s)...", n),
         TrayState::Offline => "Inmobiliaria Inbox — Sin conexión".to_string(),
         TrayState::Pending(n) => format!("Inmobiliaria Inbox — {} pendiente(s)", n),
+        TrayState::Error(n) => format!("Inmobiliaria Inbox — {} error(es)", n),
         TrayState::NotAuthenticated => "Inmobiliaria Inbox — No autenticado".to_string(),
     };
     let _ = tray.set_tooltip(Some(&tooltip));
@@ -74,6 +77,11 @@ fn determine_state(upload_manager: &Arc<UploadManager>) -> TrayState {
     }
     if upload_manager.is_uploading() {
         return TrayState::Syncing(upload_manager.queue_size() + 1);
+    }
+    let recent = upload_manager.get_recent();
+    let error_count = recent.iter().filter(|r| r.status == UploadStatus::Failed).count();
+    if error_count > 0 {
+        return TrayState::Error(error_count);
     }
     let queue_size = upload_manager.queue_size();
     if queue_size > 0 {
@@ -100,6 +108,7 @@ fn build_menu(
         TrayState::Syncing(n) => &format!("↑ Subiendo {} archivo(s)...", n),
         TrayState::Offline => "✕ Sin conexión",
         TrayState::Pending(n) => &format!("● {} pendiente(s) de subida", n),
+        TrayState::Error(n) => &format!("⚠ {} archivo(s) con error", n),
         TrayState::NotAuthenticated => "⚠ No autenticado",
     };
 
@@ -135,7 +144,10 @@ fn build_menu(
                 UploadStatus::Pending => "●",
                 UploadStatus::Uploading => "↑",
             };
-            let label = format!("{} {} ({})", icon, truncate_name(&upload.name, 30), upload.timestamp);
+            let mut label = format!("{} {} ({})", icon, truncate_name(&upload.name, 30), upload.timestamp);
+            if let Some(ref err) = upload.error {
+                label = format!("{}\n   ↳ {}", label, err);
+            }
             let item = MenuItemBuilder::with_id(format!("recent_{}", i), &label)
                 .enabled(false)
                 .build(app)
