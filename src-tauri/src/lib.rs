@@ -152,11 +152,13 @@ pub fn run() {
 }
 
 fn show_settings_window(app: &tauri::AppHandle) {
+    use tauri::Listener;
+
     if let Some(window) = app.get_webview_window("settings") {
         let _ = window.show();
         let _ = window.set_focus();
     } else {
-        let _ = tauri::WebviewWindowBuilder::new(
+        if let Ok(window) = tauri::WebviewWindowBuilder::new(
             app,
             "settings",
             tauri::WebviewUrl::App("index.html".into()),
@@ -165,7 +167,17 @@ fn show_settings_window(app: &tauri::AppHandle) {
         .inner_size(440.0, 560.0)
         .resizable(false)
         .center()
-        .build();
+        .build()
+        {
+            // Prevent closing the settings window from quitting the app:
+            // intercept the close request → just hide the window instead.
+            window.listen("tauri://close-requested", {
+                let w = window.clone();
+                move |_| {
+                    let _ = w.hide();
+                }
+            });
+        }
     }
 }
 
