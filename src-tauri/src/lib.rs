@@ -85,8 +85,13 @@ pub fn run() {
                     "open_web" => {
                         let state = app.state::<AppState>();
                         let config = state.config_manager.get();
-                        if !config.server_url.is_empty() {
-                            let _ = open::that(&config.server_url);
+                        let url = if config.web_url.is_empty() {
+                            &config.server_url
+                        } else {
+                            &config.web_url
+                        };
+                        if !url.is_empty() {
+                            let _ = open::that(url);
                         }
                     }
                     "settings" => {

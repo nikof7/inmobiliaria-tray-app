@@ -130,15 +130,23 @@ impl UploadManager {
         inbox_path: String,
     ) {
         log::info!("Upload worker started");
-        loop {
-            // Check connectivity
-            let online = check_server(&server_url).await;
-            self.set_online(online);
 
-            if !online {
-                log::debug!("Server offline, waiting...");
-                sleep(Duration::from_secs(15)).await;
-                continue;
+        // Only check server health periodically, not every loop iteration
+        let mut last_health_check = std::time::Instant::now() - std::time::Duration::from_secs(60);
+        const HEALTH_CHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(30);
+
+        loop {
+            // Check connectivity only every HEALTH_CHECK_INTERVAL
+            if last_health_check.elapsed() >= HEALTH_CHECK_INTERVAL {
+                let online = check_server(&server_url).await;
+                self.set_online(online);
+                last_health_check = std::time::Instant::now();
+
+                if !online {
+                    log::debug!("Server offline, waiting...");
+                    sleep(Duration::from_secs(15)).await;
+                    continue;
+                }
             }
 
             // Try to get next item from queue
@@ -186,6 +194,9 @@ impl UploadManager {
                         }
                         Err(e) => {
                             log::error!("Upload failed for {}: {}", file_name, e);
+
+                            // Force a health check on next iteration
+                            last_health_check = std::time::Instant::now() - HEALTH_CHECK_INTERVAL;
 
                             item.retries += 1;
                             *self.is_uploading.lock().unwrap() = false;

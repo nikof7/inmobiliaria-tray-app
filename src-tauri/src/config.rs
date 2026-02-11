@@ -3,10 +3,13 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 const DEFAULT_INBOX_FOLDER_NAME: &str = "Inmobiliaria Inbox";
+pub const DEFAULT_SERVER_URL: &str = "https://pocketbase.af.irrequieto.cloud";
+pub const DEFAULT_WEB_URL: &str = "https://arielfernandez.uy";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     pub server_url: String,
+    pub web_url: String,
     pub inbox_path: String,
     pub delete_after_upload: bool,
     pub auto_start: bool,
@@ -16,7 +19,8 @@ impl Default for AppConfig {
     fn default() -> Self {
         let default_path = dirs_default_inbox();
         Self {
-            server_url: String::new(),
+            server_url: DEFAULT_SERVER_URL.to_string(),
+            web_url: DEFAULT_WEB_URL.to_string(),
             inbox_path: default_path,
             delete_after_upload: true,
             auto_start: true,
@@ -70,12 +74,6 @@ impl ConfigManager {
         std::fs::write(&self.config_path, json).map_err(|e| e.to_string())?;
         *self.config.lock().unwrap() = new_config;
         Ok(())
-    }
-
-    pub fn update_server_url(&self, url: &str) -> Result<(), String> {
-        let mut config = self.get();
-        config.server_url = url.to_string();
-        self.save(config)
     }
 
     pub fn ensure_inbox_folder(&self) -> Result<PathBuf, String> {

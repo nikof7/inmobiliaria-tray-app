@@ -29,14 +29,29 @@ pub struct StatusInfo {
 pub async fn login(
     email: String,
     password: String,
-    server_url: String,
+    server_url: Option<String>,
+    web_url: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<AuthData, String> {
-    // Save the server URL to config first
-    state.config_manager.update_server_url(&server_url)?;
+    use crate::config::{DEFAULT_SERVER_URL, DEFAULT_WEB_URL};
+
+    let server = server_url
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| DEFAULT_SERVER_URL.to_string());
+    let web = web_url
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| DEFAULT_WEB_URL.to_string());
+
+    // Save URLs to config
+    {
+        let mut config = state.config_manager.get();
+        config.server_url = server.clone();
+        config.web_url = web;
+        state.config_manager.save(config)?;
+    }
 
     // Authenticate
-    let auth_data = auth::login(&server_url, &email, &password).await?;
+    let auth_data = auth::login(&server, &email, &password).await?;
 
     // Ensure inbox folder exists
     state.config_manager.ensure_inbox_folder()?;
@@ -52,9 +67,6 @@ pub async fn logout() -> Result<(), String> {
 #[tauri::command]
 pub async fn check_auth(state: State<'_, AppState>) -> Result<AuthData, String> {
     let config = state.config_manager.get();
-    if config.server_url.is_empty() {
-        return Err("No server configured".to_string());
-    }
     auth::check_auth(&config.server_url).await
 }
 

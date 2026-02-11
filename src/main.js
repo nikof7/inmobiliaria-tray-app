@@ -43,11 +43,12 @@ loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     loginError.classList.add("hidden");
 
-    const serverUrl = document.getElementById("server-url").value.trim();
+    const serverUrl = document.getElementById("server-url").value.trim() || null;
+    const webUrl = document.getElementById("web-url").value.trim() || null;
     const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value;
 
-    if (!serverUrl || !email || !password) return;
+    if (!email || !password) return;
 
     setLoading(true);
 
@@ -56,6 +57,7 @@ loginForm.addEventListener("submit", async (e) => {
             email,
             password,
             serverUrl,
+            webUrl,
         });
 
         // Start watcher + upload worker after first login
@@ -87,6 +89,8 @@ async function loadSettings() {
         document.getElementById("settings-folder").title = config.inbox_path;
         document.getElementById("settings-server").textContent = config.server_url;
         document.getElementById("settings-server").title = config.server_url;
+        document.getElementById("settings-web").textContent = config.web_url || "—";
+        document.getElementById("settings-web").title = config.web_url || "";
 
         toggleAutostart.checked = config.auto_start;
         toggleDelete.checked = config.delete_after_upload;
@@ -137,6 +141,7 @@ btnLogout.addEventListener("click", async () => {
         showView("login");
         // Clear login form
         document.getElementById("server-url").value = "";
+        document.getElementById("web-url").value = "";
         document.getElementById("email").value = "";
         document.getElementById("password").value = "";
         loginError.classList.add("hidden");

@@ -27,15 +27,6 @@
 
         <form id="login-form">
           <div class="field">
-            <label for="server-url">URL del servidor</label>
-            <input
-              type="url"
-              id="server-url"
-              placeholder="https://tu-servidor.pockethost.io"
-              required
-            />
-          </div>
-          <div class="field">
             <label for="email">Email</label>
             <input
               type="email"
@@ -53,6 +44,34 @@
               required
             />
           </div>
+
+          <details class="advanced-toggle">
+            <summary>Opciones avanzadas</summary>
+            <div class="field">
+              <label for="server-url">URL del backend (PocketBase)</label>
+              <input
+                type="url"
+                id="server-url"
+                placeholder="https://pocketbase.af.irrequieto.cloud"
+              />
+              <span class="field-hint"
+                >Opcional — se usa el servidor por defecto si se deja
+                vacío</span
+              >
+            </div>
+            <div class="field">
+              <label for="web-url">URL de la Inmobiliaria Web</label>
+              <input
+                type="url"
+                id="web-url"
+                placeholder="https://arielfernandez.uy"
+              />
+              <span class="field-hint"
+                >Opcional — se abre desde el menú del tray</span
+              >
+            </div>
+          </details>
+
           <div id="login-error" class="error hidden"></div>
           <button type="submit" id="btn-login" class="btn-primary">
             <span class="btn-text">Conectar</span>
@@ -80,6 +99,10 @@
           <div class="info-row">
             <span class="info-label">Servidor</span>
             <span id="settings-server" class="info-value truncate">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Web</span>
+            <span id="settings-web" class="info-value truncate">—</span>
           </div>
         </div>
 
