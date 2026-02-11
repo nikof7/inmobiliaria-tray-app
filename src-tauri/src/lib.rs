@@ -17,6 +17,14 @@ pub fn run() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     tauri::Builder::default()
+        .on_window_event(|window, event| {
+            if window.label() == "settings" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // If user tries to open another instance, show settings window
             if let Some(window) = app.get_webview_window("settings") {
@@ -152,8 +160,6 @@ pub fn run() {
 }
 
 fn show_settings_window(app: &tauri::AppHandle) {
-    use tauri::Listener;
-
     if let Some(window) = app.get_webview_window("settings") {
         let _ = window.show();
         let _ = window.set_focus();
@@ -169,14 +175,6 @@ fn show_settings_window(app: &tauri::AppHandle) {
         .center()
         .build()
         {
-            // Prevent closing the settings window from quitting the app:
-            // intercept the close request → just hide the window instead.
-            window.listen("tauri://close-requested", {
-                let w = window.clone();
-                move |_| {
-                    let _ = w.hide();
-                }
-            });
         }
     }
 }
